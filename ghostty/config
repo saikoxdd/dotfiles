@@ -1,0 +1,15 @@
+theme = saiko-night
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+background-opacity = 0.85
+background-blur-radius = 20
+macos-titlebar-style = hidden
+window-padding-x = 12
+window-padding-y = 10
+cursor-style = bar
+macos-option-as-alt = true
+
+macos-icon = official
+# macos-icon-frame = chrome
+# macos-icon-ghost-color = #c4b5fd
+# macos-icon-screen-color = #0b0a1a
