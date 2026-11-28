@@ -1,5 +1,13 @@
 // saiko · calendar card
-export const command = "date +%F";
+export const command = `
+date +%F
+B=""
+for p in /opt/homebrew/bin/icalBuddy /usr/local/bin/icalBuddy; do [ -x "$p" ] && B="$p"; done
+if [ -z "$B" ]; then echo NOICAL; else
+  "$B" -n -nc -nrd -ea -npn -li 1 -b "" -ps "| ¦ |" -iep "title,datetime" -po "datetime,title" \
+       -df "%Y-%m-%d" -tf "%H:%M" eventsToday+7 2>/dev/null | head -1
+fi
+`;
 export const refreshFrequency = 60000;
 
 export const className = `
@@ -23,6 +31,14 @@ const css = `
     background: radial-gradient(circle, rgba(196,181,253,.18), rgba(196,181,253,0) 70%); }
   .cl-lbl { font-size: 13px; letter-spacing: 1.5px; color: #8b7fb8; position: relative; }
   .cl-lbl b { color: #c4b5fd; font-weight: 500; }
+  .cl-pct { float: right; font-size: 11px; letter-spacing: .5px; text-transform: lowercase; }
+  .cl-next { margin-top: 14px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; position: relative;
+    background: rgba(29,22,56,.65); border: 1px solid #3b2f63; }
+  .cl-nk { font-family: "Hiragino Mincho ProN", serif; font-size: 16px; color: #ff4d6d; }
+  .cl-nt { flex: 1; min-width: 0; font-size: 13px; color: #e4dcff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cl-nt b { color: #c4b5fd; margin-right: 10px; }
+  .cl-nt.dim { color: #8b7fb8; font-size: 12px; }
+  .cl-nr { font-size: 11px; color: #8b7fb8; white-space: nowrap; }
   .cl-hero { display: flex; align-items: center; gap: 18px; margin: 12px 0 18px; position: relative; }
   .cl-num { font-size: 76px; font-weight: 700; line-height: .9; letter-spacing: -3px;
     background: linear-gradient(160deg, #ffffff, #b9a7ff); -webkit-background-clip: text; color: transparent;
@@ -62,7 +78,26 @@ const isoWeek = (d) => {
   return Math.ceil(((t - new Date(Date.UTC(t.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7);
 };
 
-export const render = () => {
+const relTime = (start, now) => {
+  const min = Math.round((start - now) / 60000);
+  if (min <= 0) return "сейчас";
+  if (min < 60) return `через ${min} мин`;
+  const sameDay = start.toDateString() === now.toDateString();
+  if (sameDay) return `через ${Math.floor(min / 60)} ч ${min % 60 ? (min % 60) + " мин" : ""}`.trim();
+  const tm = new Date(now); tm.setDate(tm.getDate() + 1);
+  if (start.toDateString() === tm.toDateString()) return "завтра";
+  return start.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" });
+};
+const parseNext = (line) => {
+  if (!line) return null;
+  if (line.trim() === "NOICAL") return { missing: true };
+  const [dt, ...rest] = line.split(" ¦ ");
+  const m = dt.match(/(\d{4})-(\d{2})-(\d{2}) at (\d{2}):(\d{2})/);
+  if (!m) return null;
+  return { start: new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]), time: `${m[4]}:${m[5]}`, title: rest.join(" ¦ ").trim() || "событие" };
+};
+
+export const render = ({ output }) => {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
   const offset = (new Date(y, m, 1).getDay() + 6) % 7;
@@ -86,12 +121,13 @@ export const render = () => {
   const wd = now.toLocaleDateString("ru-RU", { weekday: "long" });
   const month = now.toLocaleDateString("ru-RU", { month: "long" });
   const pct = Math.round((today / daysIn) * 100);
+  const next = parseNext((output || "").split("\n")[1]);
   const isHol = HOLIDAYS.has(`${m + 1}-${today}`);
 
   return (
     <div className="cl-card">
       <style>{css}</style>
-      <div className="cl-lbl">✦ <b>暦</b> · calendar</div>
+      <div className="cl-lbl">✦ <b>暦</b> · calendar<span className="cl-pct">{month} · {pct}%</span></div>
       <div className="cl-hero">
         <div className="cl-num">{String(today).padStart(2, "0")}</div>
         <div className="cl-side">
@@ -110,7 +146,17 @@ export const render = () => {
           return <div key={i} className={"cl-c" + bc}><div className={"cl-d " + c.cls}>{c.n}</div></div>;
         })}
       </div>
-      <div className="cl-foot">{month}<div className="cl-bar"><i style={{ width: pct + "%" }} /></div>{pct}%</div>
+      {next && next.missing ? (
+        <div className="cl-next"><span className="cl-nk">次</span><div className="cl-nt dim">нужен icalBuddy · brew install ical-buddy</div></div>
+      ) : next ? (
+        <div className="cl-next">
+          <span className="cl-nk">次</span>
+          <div className="cl-nt"><b>{next.time}</b>{next.title}</div>
+          <span className="cl-nr">{relTime(next.start, now)}</span>
+        </div>
+      ) : (
+        <div className="cl-next"><span className="cl-nk">次</span><div className="cl-nt dim">ближайшую неделю свободно ✦</div></div>
+      )}
     </div>
   );
 };

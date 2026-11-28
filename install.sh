@@ -18,6 +18,8 @@ link "$D/starship/starship.toml" ~/.config/starship.toml
 link "$D/zsh/.zshrc"             ~/.zshrc
 [ -f aerospace/.aerospace.toml ] && link "$D/aerospace/.aerospace.toml" ~/.aerospace.toml
 
+ln -sfn "$D/bin/theme" /opt/homebrew/bin/theme && echo "  ↳ theme"
+
 echo "✦ виджеты Übersicht"
 W="$HOME/Library/Application Support/Übersicht/widgets"; mkdir -p "$W"
 cp -f ubersicht/widgets/*.jsx "$W/"

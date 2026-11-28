@@ -1,0 +1,85 @@
+#!/bin/bash
+# theme - переключатель тем рабочего стола
+#   theme night | calm | toggle | status
+set -u
+SRC="${BASH_SOURCE[0]}"; [ -L "$SRC" ] && SRC="$(readlink "$SRC")"
+D="$(cd "$(dirname "$SRC")/.." && pwd)"          # корень dotfiles
+ST="$HOME/.config/theme"; mkdir -p "$ST"
+CUR="$(cat "$ST/current" 2>/dev/null || echo night)"
+
+T="${1:-status}"
+case "$T" in
+  status) echo "current: $CUR"; exit 0;;
+  toggle) if [ "$CUR" = night ]; then T=calm; else T=night; fi;;
+  night|calm) ;;
+  *) echo "usage: theme night|calm|toggle|status"; exit 1;;
+esac
+
+# ── файл со своей копией на каждую тему (правки не теряются) ──
+# swap FILE KEY PERL_EXPR: calm создаётся из night по perl-замене при первом переключении
+swap() {
+  local f="$1" key="$2" expr="$3"
+  [ -f "$f" ] || return 0
+  cp -f "$f" "$ST/$key.$CUR"
+  if [ -f "$ST/$key.$T" ]; then cp -f "$ST/$key.$T" "$f"
+  elif [ "$T" != night ] && [ -f "$ST/$key.night" ]; then perl -pe "$expr" "$ST/$key.night" > "$f"
+  fi
+}
+
+# ── обои ──
+mkdir -p "$HOME/Pictures/Wallpapers"
+if [ "$T" = night ]; then WP="$D/wallpapers/saiko-night.png"; else WP="$D/themes/$T/wallpaper.png"; fi
+if [ -f "$WP" ]; then
+  cp -f "$WP" "$HOME/Pictures/Wallpapers/saiko-$T.png"
+  P="$HOME/Pictures/Wallpapers/saiko-$T.png"
+  if command -v desktoppr >/dev/null; then desktoppr "$P"
+  else osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"$P\"" 2>/dev/null || echo "  ! обои: разреши Automation → System Events"; fi
+fi
+
+# ── виджеты Übersicht (чистим только свои: первая строка "// saiko") ──
+W="$HOME/Library/Application Support/Übersicht/widgets"; mkdir -p "$W"
+for f in "$W"/*.jsx; do [ -f "$f" ] && head -1 "$f" | grep -q '^// saiko' && rm -f "$f"; done
+if [ "$T" = night ]; then WS="$D/ubersicht/widgets"; else WS="$D/themes/$T/widgets"; fi
+cp -f "$WS"/*.jsx "$W/" 2>/dev/null
+osascript -e 'tell application id "tracesOf.Uebersicht" to refresh' 2>/dev/null || true
+
+# ── Ghostty ──
+for G in "$HOME/.config/ghostty" "$HOME/Library/Application Support/com.mitchellh.ghostty"; do
+  [ -f "$G/config" ] || continue
+  mkdir -p "$G/themes"
+  [ -f "$D/themes/calm/ghostty-saiko-calm" ] && cp -f "$D/themes/calm/ghostty-saiko-calm" "$G/themes/saiko-calm"
+  [ -f "$D/ghostty/themes/saiko-night" ] && cp -f "$D/ghostty/themes/saiko-night" "$G/themes/saiko-night"
+  if grep -qE '^[[:space:]]*theme[[:space:]]*=' "$G/config"; then
+    perl -i -pe "s/^\s*theme\s*=.*/theme = saiko-$T/" "$G/config"
+  else echo "theme = saiko-$T" >> "$G/config"; fi
+done
+pkill -USR2 -x ghostty 2>/dev/null || true       # перечитать конфиг в открытых окнах
+
+# ── Starship: перекраска палитры ──
+swap "$HOME/.config/starship.toml" starship '
+  s/#c4b5fd/#6f8a91/gi; s/#ff4d6d/#e8b76a/gi; s/#8b6fd1/#5d7479/gi; s/#b7a9e6/#9fb2b7/gi;
+  s/#efeaff/#d7e2e4/gi; s/#e4dcff/#d7e2e4/gi; s/#3b2f63/#24343a/gi; s/#(ff7a93|ff8fa5)/#ec9a8c/gi; s/#9aa5ff/#7fa0a6/gi;
+  BEGIN{%C=(rosewater=>"d7e2e4",flamingo=>"ec9a8c",pink=>"ec9a8c",mauve=>"6f8a91",red=>"e8b76a",maroon=>"ec9a8c",
+    peach=>"cdb88a",yellow=>"9fb2b7",green=>"86a0a6",teal=>"7fa0a6",sky=>"7fa0a6",sapphire=>"6f8a91",blue=>"6f8a91",
+    lavender=>"5d7479",text=>"d7e2e4",subtext1=>"b8c8cb",subtext0=>"9fb2b7",overlay2=>"7f9599",overlay1=>"6f8a91",
+    overlay0=>"5d7479",surface2=>"3a4e54",surface1=>"24343a",surface0=>"1b2a2e",base=>"0b100f",mantle=>"0e1514",crust=>"0b100f")}
+  $s = /^\[palettes\.saiko\]/ ? 1 : /^\[/ ? 0 : $s;
+  s/"#[0-9a-f]{6}"/"#$C{$k}"/i if $s && /^(\w+)\s*=/ && ($k=$1) && exists $C{$k};'
+
+# ── AeroSpace: зазоры 14px в calm ──
+if [ -f "$HOME/.aerospace.toml" ]; then
+  swap "$HOME/.aerospace.toml" aerospace 's/^(\s*gaps\.(?:inner\.(?:horizontal|vertical)|outer\.(?:left|right|top|bottom))\s*=\s*)\d+/${1}14/'
+  aerospace reload-config 2>/dev/null || true
+fi
+
+# ── акцент macOS (применяется в новых окнах) ──
+if [ "$T" = calm ]; then
+  defaults write -g AppleAccentColor -int 2
+  defaults write -g AppleHighlightColor "1.000000 0.937255 0.690196 Yellow"
+else
+  defaults write -g AppleAccentColor -int 5
+  defaults write -g AppleHighlightColor "0.968627 0.831373 1.000000 Purple"
+fi
+
+echo "$T" > "$ST/current"
+echo "✦ theme: $T"

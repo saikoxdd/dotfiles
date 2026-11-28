@@ -2,9 +2,15 @@
 # Собирает актуальные конфиги с этого мака в репозиторий и проверяет их на секреты.
 set -euo pipefail
 cd "$(dirname "$0")"
+# calm подменяет виджеты, starship, ghostty и gaps - собираем всегда в night и потом возвращаем тему
+PREV=$(cat ~/.config/theme/current 2>/dev/null || echo night)
+if [ "$PREV" != night ]; then bin/theme night >/dev/null; trap 'bin/theme "$PREV" >/dev/null' EXIT; fi
 echo "✦ собираю конфиги..."
+S="$HOME/Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents/night.js"
+[ -f "$S" ] && mkdir -p ios && cp "$S" ios/night.js
 cp ~/.config/ghostty/config ghostty/config
 [ -d ~/.config/ghostty/themes ] && cp ~/.config/ghostty/themes/* ghostty/themes/ 2>/dev/null || true
+mkdir -p starship zsh
 cp ~/.config/starship.toml starship/starship.toml
 cp ~/.zshrc zsh/.zshrc
 [ -f ~/.aerospace.toml ] && mkdir -p aerospace && cp ~/.aerospace.toml aerospace/.aerospace.toml

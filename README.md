@@ -15,8 +15,21 @@
 | **cursors/** | набор курсоров `night` для Mousecape |
 | **icons/** | иконки TypeSpeed и Files |
 | **macos/** | системные настройки через `defaults` |
+| **themes/calm/** | вторая тема «calm»: обои, тема Ghostty, виджеты |
+| **bin/theme** | переключатель тем `theme night \| calm \| toggle \| status` |
+| **ios/** | `night.js` - виджеты Scriptable для айфона (reminders, calendar, status, terminal) |
 
 <p align="center"><img src="docs/widgets.png" width="48%"> <img src="docs/cursors.png" width="48%"></p>
+
+### ✦ темы
+
+Две темы: **night** (по умолчанию, ночное небо и лаванда) и **calm** (чернильный фон, один тёплый янтарный акцент `#e8b76a`, виджеты без карточек).
+
+```bash
+theme night | calm | toggle | status
+```
+
+Переключатель меняет обои, набор виджетов Übersicht (трогает только файлы с `// saiko` в первой строке), тему Ghostty, цвета Starship, зазоры AeroSpace (14px в calm) и системный акцент. Курсор и иконки в него не входят. Состояние хранится в `~/.config/theme`. Для обоев может понадобиться System Settings → Privacy & Security → Automation → System Events.
 
 ### ✦ установка
 
@@ -40,4 +53,4 @@ cd ~/dotfiles && bash install.sh
 bash collect.sh && git add -A && git commit -m "update" && git push
 ```
 
-`collect.sh` копирует актуальные конфиги с мака, делает `Brewfile` и проверяет файлы на токены и пароли.
+`collect.sh` сам переключается на night на время сбора (и возвращает тему обратно), копирует `ios/night.js` из iCloud Scriptable и актуальные конфиги с мака, делает `Brewfile` и проверяет файлы на токены и пароли.
